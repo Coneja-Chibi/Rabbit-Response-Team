@@ -281,6 +281,8 @@ function addToHistory(words) {
     if (wordHistory.length > historySize) {
         wordHistory = wordHistory.slice(-historySize);
     }
+
+    console.log(`🐰 Rabbit Response Team: History now has ${wordHistory.length} words: [${wordHistory.slice(-5).join(', ')}...]`);
 }
 
 // Filter out blacklisted and recently used words
@@ -302,9 +304,11 @@ function filterWords(words) {
 async function getRandomWords(count) {
     const useAPI = extension_settings[extensionName].useAPI;
     const fallback = extension_settings[extensionName].fallbackToGenerated;
-    const maxAttempts = 10; // Prevent infinite loops
+    const maxAttempts = 20; // Increased from 10 to handle history better
     let attempts = 0;
     let validWords = [];
+
+    console.log(`🐰 Rabbit Response Team: Getting ${count} words (history size: ${wordHistory.length}/${extension_settings[extensionName].historySize})`);
 
     while (validWords.length < count && attempts < maxAttempts) {
         attempts++;
@@ -332,13 +336,24 @@ async function getRandomWords(count) {
         validWords.push(...filtered);
     }
 
+    // If we couldn't get enough words after all attempts, allow some repeats
+    if (validWords.length < count && fallback) {
+        console.warn(`🐰 Rabbit Response Team: Only found ${validWords.length}/${count} words after ${maxAttempts} attempts. Allowing repeats from fallback bank.`);
+
+        // Get remaining words from fallback without filtering history
+        const remaining = count - validWords.length;
+        const unfiltered = getRandomFallbackWords(remaining);
+        validWords.push(...unfiltered);
+    }
+
     // Add to history
     addToHistory(validWords);
 
+    console.log(`🐰 Rabbit Response Team: Returning ${validWords.length} words: [${validWords.join(', ')}]`);
     return validWords.slice(0, count);
 }
 
-// Inject words into prompt - handled when the chat prompt is ready
+// Inject words into prompt - EPHEMERAL, at the VERY BOTTOM
 eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, async (eventData) => {
     if (!extension_settings[extensionName].enabled) {
         return;
@@ -367,12 +382,16 @@ eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, async (eventData) => {
     }
 
     const wordCount = extension_settings[extensionName].wordCount;
+
+    // Generate NEW words for every generation (always random)
     const randomWords = await getRandomWords(wordCount);
 
     if (randomWords.length === 0) {
         console.warn('🐰 Rabbit Response Team: No words selected!');
         return;
     }
+
+    console.log('🐰 Rabbit Response Team: Generated new words for this generation:', randomWords);
 
     // Create the instruction using custom prompt template
     const wordListFormatted = randomWords.map(w => `"${w}"`).join(', ');
@@ -414,9 +433,10 @@ function updateHeaderWithWords(words) {
     if (!extension_settings[extensionName].showLastWords) return;
 
     const headerTitle = $('.rabbit-header-title');
-    if (headerTitle.length) {
+    if (headerTitle.length && words && words.length > 0) {
         const wordsDisplay = words.map(w => `"${w}"`).join(', ');
-        headerTitle.text(`Rabbit Response Team - Last: ${wordsDisplay}`);
+        headerTitle.text(`Rabbit Response Team - ${wordsDisplay}`);
+        console.log('🐰 Rabbit Response Team: Updated header with words:', wordsDisplay);
     }
 }
 
@@ -424,14 +444,14 @@ function updateHeaderWithWords(words) {
 function createSettingsUI() {
     const settingsHtml = `
         <div class="rabbit-numeral-container">
-            <div class="rabbit-header" data-toggle="collapse" data-target="#rabbit-settings-body" aria-expanded="false">
+            <div class="rabbit-header" data-toggle="collapse" data-target="#rabbit-settings-body" aria-expanded="true">
                 <div class="rabbit-header-icon">🐰</div>
                 <h3 class="rabbit-header-title">Rabbit Response Team</h3>
                 <div class="rabbit-header-toggle">
                     <i class="fa-solid fa-chevron-down"></i>
                 </div>
             </div>
-            <div id="rabbit-settings-body" class="rabbit-settings-body collapse" style="display: none;">
+            <div id="rabbit-settings-body" class="rabbit-settings-body"  data-api-provider="vercel">
                 <p class="rabbit-description">
                     Fetches truly random words and requires the AI to use them in the response.
                 </p>
@@ -579,7 +599,7 @@ function createSettingsUI() {
                 <i class="fa-solid fa-chevron-down rabbit-advanced-toggle"></i>
             </div>
 
-            <div id="rabbit-advanced-body" class="rabbit-advanced-body collapse" style="display: none;">
+            <div id="rabbit-advanced-body" class="rabbit-advanced-body" style="display: none;">
                 <div class="rabbit-setting-row">
                     <label for="rabbit_custom_prompt">
                         Custom Prompt Template:

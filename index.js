@@ -435,8 +435,13 @@ async function fetchRandomWordsFromAPI(count) {
                 params.append(`rel_${relType}`, contextWord);
                 console.log(`🐰 Rabbit Response Team: Using contextual mode with word "${contextWord}" and relationship "${relType}"`);
             } else {
+                // No context word found - use random letter instead of sp=*
                 console.warn('🐰 Rabbit Response Team: No words found in message, falling back to random mode');
-                params.append('sp', '*');
+                const randomLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+                                      'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
+                const randomLetter = randomLetters[Math.floor(Math.random() * randomLetters.length)];
+                params.append('sp', randomLetter + '*');
+                console.log(`🐰 Rabbit Response Team: Randomly selected starting letter: ${randomLetter.toUpperCase()}`);
             }
         } else {
             // Random mode - use wildcard pattern
@@ -448,7 +453,13 @@ async function fetchRandomWordsFromAPI(count) {
             } else if (settings.wordLength > 0) {
                 pattern = '?'.repeat(settings.wordLength);
             } else {
-                pattern = '*'; // Any word
+                // No filter specified - pick a random starting letter for better variety
+                // (using sp=* returns alphabetically sorted results, mostly 'A' words)
+                const randomLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+                                      'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
+                const randomLetter = randomLetters[Math.floor(Math.random() * randomLetters.length)];
+                pattern = randomLetter + '*';
+                console.log(`🐰 Rabbit Response Team: Randomly selected starting letter: ${randomLetter}`);
             }
 
             params.append('sp', pattern);

@@ -1,5 +1,29 @@
-# Rabbit-Response-Team
-A random word generator to try and destabilize standard LLM pattern/probability prone thinking!
+# 🐇 Rabbit-Response-Team
+![Status](https://img.shields.io/badge/Status-Active-ffb6c1?style=for-the-badge&logo=hyper&logoColor=white) ![Type](https://img.shields.io/badge/Type-Extension-fdd835?style=for-the-badge&logo=puzzle&logoColor=black)
 
-My idea in its most basic parts is: All LLM's are is patterns and probability right? They are incapable of being truly random, and even if you ask them to be truly random they can't, because it's still within their 'fishbowl' so to speak. The goal of this little extension is to generate random words and then inject them into the prompt, telling the AI these words ***must*** be used. Because something inside the fishbowl can't edit it, but if something from the outside injects in, it should steer the LLM off it's usual routine/patterns right? That was just my idea anyways. Have fun playing with this! Let me know if it works to shake up prose!
-(In depth read me not needed but it'll be coming soon anyways.)
+## 🎲 A random word generator designed to destabilize standard LLM pattern and probability-based thinking.
+
+💭 The core idea
+
+All LLMs operate on patterns and probabilities.
+They’re great at predicting what “fits next,” but they can’t ever be truly random.
+Even if you ask them to be random, it’s still happening inside their own boundaries — their fishbowl, so to speak. 🐠
+
+⚙️ How it works
+
+This little extension generates completely random words from outside the LLM, then injects them into the prompt with an instruction:
+
+“These words must be used.”
+
+Because the injection happens from outside the system, it forces the model to adapt — breaking its usual rhythm and nudging it out of pattern-lock.
+
+🎯 The goal
+
+To see if introducing true external randomness can make the model’s responses less predictable —
+whether that means more creative prose, unexpected ideas, or simply new phrasing paths the AI wouldn’t normally take.
+
+🧪 Try it out
+
+It’s a small experiment: give it words, see what happens, and watch the model stumble into something interesting.
+
+![Made with ❤️ (and carrotd!)](https://img.shields.io/badge/Made%20with-%E2%9D%A4-red)

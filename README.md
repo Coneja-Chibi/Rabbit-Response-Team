@@ -11,7 +11,7 @@
 All LLMs run on **patterns** and **probabilities** — they predict what *should* come next, but never break from their training data.  
 Even when asked to “be random,” they can’t truly leave that internal loop — they’re still inside the **fishbowl**. 🐠  
 
-
+---
 
 ## 🧠 Overview  
 
@@ -19,6 +19,7 @@ The **Rabbit Response Team** breaks that loop.
 It fetches **truly random words** from outside the model (via real APIs) and **injects** them directly into the AI’s prompt.  
 Each injected word must be used naturally in the model’s response — forcing the AI to adapt, improvise, and escape pattern lock.  
 
+---
 
 ### ✨ Features  
 
@@ -30,7 +31,7 @@ Each injected word must be used naturally in the model’s response — forcing 
 - ⚙️ **Adjustable Count** — Choose 1–10 words to inject per prompt.
 - 🌀 **And More** — It's not a very big extension. What are you waiting for!
 
-
+---
 
 ## 🧭 How to Use  
 
@@ -52,6 +53,7 @@ Each test gives a *completely different* set of words.
 ### 4️⃣ Chat Normally  
 The injected words will appear invisibly in your prompt’s backend,  
 and the AI will weave them naturally into its response.  
+
 
 ---
 

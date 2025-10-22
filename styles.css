@@ -336,7 +336,8 @@ input[type="checkbox"] {
 /* API-specific option visibility - Simple approach */
 /* Hide all by default */
 .rabbit-heroku-only,
-.rabbit-vercel-only {
+.rabbit-vercel-only,
+.rabbit-datamuse-only {
     display: none;
 }
 
@@ -347,6 +348,21 @@ input[type="checkbox"] {
 
 /* Show Vercel options when vercel is selected */
 [data-api-provider="vercel"] .rabbit-vercel-only {
+    display: block;
+}
+
+/* Show Datamuse options when datamuse is selected */
+[data-api-provider="datamuse"] .rabbit-datamuse-only {
+    display: block;
+}
+
+/* Datamuse contextual mode specific options */
+.rabbit-datamuse-contextual {
+    display: none;
+}
+
+/* Show contextual options only when contextual mode is selected */
+[data-datamuse-mode="contextual"] .rabbit-datamuse-contextual {
     display: block;
 }
 

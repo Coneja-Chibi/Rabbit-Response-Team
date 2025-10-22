@@ -49,7 +49,7 @@ const defaultSettings = {
 
     // Prompt customization
     customPrompt: DEFAULT_PROMPT_TEMPLATE,
-    injectionDepth: 0, // 0 = bottom, higher = further up
+    injectionDepth: 0, // 0 = just before trailing assistant/prefill, higher = further up
     injectionEndRole: 'system', // system, user, or assistant (matches Guided Generations naming)
 
     // Shared settings
@@ -338,9 +338,8 @@ async function getRandomWords(count) {
     return validWords.slice(0, count);
 }
 
-// Inject words into prompt - EPHEMERAL, at the VERY BOTTOM
-// Using makeLast() ensures this runs AFTER all other extensions at the same depth
-eventSource.makeLast(event_types.CHAT_COMPLETION_PROMPT_READY, async (eventData) => {
+// Inject words into prompt - handled when the chat prompt is ready
+eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, async (eventData) => {
     if (!extension_settings[extensionName].enabled) {
         return;
     }
@@ -389,10 +388,13 @@ eventSource.makeLast(event_types.CHAT_COMPLETION_PROMPT_READY, async (eventData)
 
     // CORRECT METHOD: Push to data.chat (like NoAss does)
     // This is EPHEMERAL - only exists for this generation, doesn't persist to chat history
-    // Won't conflict with other extensions because it's the last thing added
     if (eventData && eventData.chat) {
-        // Handle injection depth - 0 means bottom (push), higher means insert from end
-        const targetIndex = eventData.chat.length - settings.injectionDepth;
+        // Handle injection depth - 0 stays near the bottom but before trailing assistant/prefill
+        const depth = Number.isFinite(settings.injectionDepth) ? Math.max(0, settings.injectionDepth) : 0;
+        const lastMessage = eventData.chat[eventData.chat.length - 1];
+        const avoidTrailingAssistant = lastMessage && lastMessage.role === 'assistant' && settings.injectionEndRole !== 'assistant';
+        const effectiveDepth = depth + (avoidTrailingAssistant ? 1 : 0);
+        const targetIndex = eventData.chat.length - effectiveDepth;
         const insertIndex = Math.max(0, Math.min(targetIndex, eventData.chat.length));
 
         eventData.chat.splice(insertIndex, 0, {
@@ -602,7 +604,7 @@ function createSettingsUI() {
                                   background: var(--black30a); color: var(--SmartThemeBodyColor);
                                   border: 1px solid rgba(147, 51, 234, 0.3);" />
                     <small style="opacity: 0.7; display: block; margin-top: 5px;">
-                        0 = absolute bottom, higher values = insert further up from the end
+                        0 = just before assistant prefill (if present), higher values = insert further up
                     </small>
                 </div>
 

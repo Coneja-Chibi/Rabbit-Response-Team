@@ -3,6 +3,7 @@
 [![SillyTavern Extension](https://img.shields.io/badge/SillyTavern-Extension-blue.svg)](https://docs.sillytavern.app/)
 
 *🎲 A random word generator designed to destabilize standard LLM pattern and probability-based thinking.*
+
 ---
 
 ## 💭 The core issue
@@ -10,7 +11,7 @@
 All LLMs run on **patterns** and **probabilities** — they predict what *should* come next, but never break from their training data.  
 Even when asked to “be random,” they can’t truly leave that internal loop — they’re still inside the **fishbowl**. 🐠  
 
----
+
 
 ## 🧠 Overview  
 
@@ -29,7 +30,7 @@ Each injected word must be used naturally in the model’s response — forcing 
 - ⚙️ **Adjustable Count** — Choose 1–10 words to inject per prompt.
 - 🌀 **And More** — It's not a very big extension. What are you waiting for!
 
----
+
 
 ## 🧭 How to Use  
 

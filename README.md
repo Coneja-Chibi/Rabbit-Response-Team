@@ -1,4 +1,5 @@
-# 🐇 Rabbit-Response-Team
+# 🐇 Rabbit-Response-Team <img width="505" height="360" alt="image" src="https://github.com/user-attachments/assets/cda304b5-0a16-437d-80c6-5ab662377e0c" />
+
 [![Status: Active Development](https://img.shields.io/badge/Status-Active%20Development-orange.svg)](https://github.com/your-repo/CarrotKernel)
 [![SillyTavern Extension](https://img.shields.io/badge/SillyTavern-Extension-blue.svg)](https://docs.sillytavern.app/)
 

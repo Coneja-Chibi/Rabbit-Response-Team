@@ -19,7 +19,7 @@ It fetches **truly random words** from outside the model (via real APIs) and **i
 Each injected word must be used naturally in the model’s response — forcing the AI to adapt, improvise, and escape pattern lock.  
 
 
-## ✨ Features  
+### ✨ Features  
 
 - 🎯 **Truly Random Words** — Pulled live from online dictionary APIs.  
 - 🧩 **Fallback Generator** — Generates pronounceable nonsense words if APIs fail.  

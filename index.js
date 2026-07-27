@@ -4,7 +4,7 @@ import { extension_settings } from '../../../extensions.js';
 const { eventSource, event_types } = SillyTavern.getContext();
 
 const extensionName = 'RabbitNumeralRandomizer';
-const extensionFolderPath = `third-party/${extensionName}`;
+const extensionFolderPath = 'third-party/Rabbit-Response-Team';
 
 // Fallback word bank (113 words from various API calls)
 const FALLBACK_WORD_BANK = [
@@ -124,13 +124,27 @@ const defaultSettings = {
 // Word history tracking (stored in memory, not saved)
 let wordHistory = [];
 
+// Track whether the current generation is a real user-facing generation
+// (as opposed to a background/utility generation like summarize, vectors, etc.)
+let isUserGeneration = false;
+
+// Fisher-Yates shuffle (unbiased, unlike Array.sort with a random comparator)
+function fisherYatesShuffle(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
 // Load settings
 function loadSettings() {
     if (!extension_settings[extensionName]) {
         extension_settings[extensionName] = JSON.parse(JSON.stringify(defaultSettings));
     }
 
-    const settings = extension_settings[extensionName];
+    let settings = extension_settings[extensionName];
     let needsSave = false;
 
     // MIGRATION: Convert old flat structure to new nested structure
@@ -169,6 +183,7 @@ function loadSettings() {
         newSettings.randomWords.showLastWords = oldSettings.showLastWords ?? true;
 
         needsSave = true;
+        settings = extension_settings[extensionName];
         console.log('🐰 Rabbit Response Team: Migration complete');
     }
 
@@ -329,14 +344,14 @@ function updateDatamuseMode() {
 
 // Get random words from fallback bank
 function getRandomFallbackWords(count) {
-    const shuffled = [...FALLBACK_WORD_BANK].sort(() => Math.random() - 0.5);
+    const shuffled = fisherYatesShuffle(FALLBACK_WORD_BANK);
     return shuffled.slice(0, count);
 }
 
 // Extract a random meaningful word from the last user message
 async function extractRandomWordFromMessage() {
     try {
-        const context = getContext();
+        const context = SillyTavern.getContext();
         const chat = context.chat;
 
         if (!chat || chat.length === 0) return null;
@@ -539,7 +554,7 @@ async function fetchRandomWordsFromAPI(count) {
             // 34-66: Mix of both (no filtering)
 
             // Shuffle and extract results
-            words = words.sort(() => Math.random() - 0.5).slice(0, count);
+            words = fisherYatesShuffle(words).slice(0, count);
 
             // Format with definitions if enabled
             if (settings.includeDefinitions) {
@@ -608,7 +623,7 @@ async function fetchRandomWordsFromAPIWithTheme(count, themeWord) {
             }).map(item => item.word);
 
             // Shuffle and pick random subset
-            words = words.sort(() => Math.random() - 0.5).slice(0, count);
+            words = fisherYatesShuffle(words).slice(0, count);
             return words;
         }
 
@@ -699,28 +714,17 @@ async function getRandomWords(count) {
             const themeWord = typeof firstItem === 'object' ? firstItem.word : firstItem;
             console.log(`🐰 Rabbit Response Team: Double pass theme word: "${themeWord}"`);
 
-            // Temporarily modify settings to use synonym mode with theme word
-            const originalMode = settings.datamuseMode;
-            const originalRel = settings.relationshipType;
-
-            settings.datamuseMode = 'contextual';
-            settings.relationshipType = settings.relationshipType || 'syn'; // Use current relationship type or default to syn
-
             // Fetch remaining words themed around first word
             const themedWords = await fetchRandomWordsFromAPIWithTheme(count - 1, themeWord);
 
-            // Restore original settings
-            settings.datamuseMode = originalMode;
-            settings.relationshipType = originalRel;
-
             if (themedWords && themedWords.length > 0) {
                 validWords.push(firstItem, ...themedWords);
-                // Filter and add to history
-                validWords = filterWords(validWords);
+                // Filter, slice to the requested count, then add to history
+                validWords = filterWords(validWords).slice(0, count);
                 addToHistory(validWords);
                 const displayWords = validWords.map(w => typeof w === 'object' ? w.word : w);
                 console.log(`🐰 Rabbit Response Team: Double pass complete: [${displayWords.join(', ')}]`);
-                return validWords.slice(0, count);
+                return validWords;
             }
         }
 
@@ -751,26 +755,49 @@ async function getRandomWords(count) {
 
         // Filter out blacklisted and recently used words
         const filtered = filterWords(newWords);
-        validWords.push(...filtered);
+
+        // Skip words already accepted this round (case-insensitive)
+        const existingLower = new Set(validWords.map(w => (typeof w === 'object' ? w.word : w).toLowerCase()));
+        for (const wordItem of filtered) {
+            const wordStr = (typeof wordItem === 'object' ? wordItem.word : wordItem).toLowerCase();
+            if (existingLower.has(wordStr)) continue;
+            existingLower.add(wordStr);
+            validWords.push(wordItem);
+        }
     }
 
     // If we couldn't get enough words after all attempts, allow some repeats
     if (validWords.length < count && fallback) {
         console.warn(`🐰 Rabbit Response Team: Only found ${validWords.length}/${count} words after ${maxAttempts} attempts. Allowing repeats from fallback bank.`);
 
-        // Get remaining words from fallback without filtering history
+        // Get remaining words from fallback without filtering history, but still respect the blacklist
         const remaining = count - validWords.length;
-        const unfiltered = getRandomFallbackWords(remaining);
+        const unfiltered = getRandomFallbackWords(remaining).filter(wordItem => !isBlacklisted(wordItem));
         validWords.push(...unfiltered);
     }
+
+    // Slice to the requested count BEFORE recording history, so history only reflects injected words
+    validWords = validWords.slice(0, count);
 
     // Add to history
     addToHistory(validWords);
 
     const displayWords = validWords.map(w => typeof w === 'object' ? w.word : w);
     console.log(`🐰 Rabbit Response Team: Returning ${validWords.length} words: [${displayWords.join(', ')}]`);
-    return validWords.slice(0, count);
+    return validWords;
 }
+
+// Track user-facing generations so we don't inject into background/utility prompts
+// (summarize, vector storage, stable-diffusion captioning, expressions, etc.)
+eventSource.on(event_types.GENERATION_STARTED, (type, params, dryRun) => {
+    isUserGeneration = !dryRun && type !== 'quiet' && type !== 'impersonate';
+});
+eventSource.on(event_types.GENERATION_ENDED, () => {
+    isUserGeneration = false;
+});
+eventSource.on(event_types.GENERATION_STOPPED, () => {
+    isUserGeneration = false;
+});
 
 // Inject words into prompt - EPHEMERAL, at the VERY BOTTOM
 eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, async (eventData) => {
@@ -788,6 +815,13 @@ eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, async (eventData) => {
         return;
     }
 
+    // Skip background/utility generations (this event also fires from generateRawData
+    // for summarize, vectors, stable-diffusion prompts, expressions, etc.)
+    if (!isUserGeneration) {
+        console.log('🐰 Rabbit Response Team: Skipping injection (not a user generation)');
+        return;
+    }
+
     // Ensure we have valid chat data
     if (!eventData.chat || eventData.chat.length === 0) {
         console.log('🐰 Rabbit Response Team: Skipping injection (no chat data)');
@@ -796,12 +830,18 @@ eventSource.on(event_types.CHAT_COMPLETION_PROMPT_READY, async (eventData) => {
 
     // RANDOM WORDS INJECTION
     if (rw.enabled) {
-        // Check minimum message length
+        // Check minimum message length (measured on the last actual user message)
         const minLength = rw.minMessageLength;
-        if (minLength > 0 && eventData.chat.length > 0) {
-            const lastMessage = eventData.chat[eventData.chat.length - 1];
-            if (lastMessage && lastMessage.content && lastMessage.content.length < minLength) {
-                console.log(`🐰 Rabbit Response Team (Random): Skipping injection (message length ${lastMessage.content.length} < ${minLength})`);
+        if (minLength > 0) {
+            let lastUserMessage = null;
+            for (let i = eventData.chat.length - 1; i >= 0; i--) {
+                if (eventData.chat[i] && eventData.chat[i].role === 'user') {
+                    lastUserMessage = eventData.chat[i];
+                    break;
+                }
+            }
+            if (lastUserMessage && lastUserMessage.content && lastUserMessage.content.length < minLength) {
+                console.log(`🐰 Rabbit Response Team (Random): Skipping injection (message length ${lastUserMessage.content.length} < ${minLength})`);
             } else {
                 await injectRandomWords(eventData, rw);
             }
@@ -848,7 +888,7 @@ async function injectRandomWords(eventData, settings) {
     }
 
     const promptTemplate = settings.customPrompt || DEFAULT_RANDOM_PROMPT;
-    const injectionText = promptTemplate.replace('{{words}}', wordListFormatted);
+    const injectionText = promptTemplate.replaceAll('{{words}}', wordListFormatted);
 
     console.log('🐰 Rabbit Response Team (Random): Injecting words (ephemeral):', wordStrings);
     console.log('🐰 Rabbit Response Team (Random): Using role:', settings.injectionEndRole);
@@ -978,8 +1018,8 @@ async function injectSynonyms(eventData, settings) {
         const synonymList = synonyms.map(w => `"${w}"`).join(', ');
         const promptTemplate = settings.customPrompt || DEFAULT_SYNONYM_PROMPT;
         const injectionText = promptTemplate
-            .replace('{{originalWord}}', targetWord)
-            .replace('{{synonyms}}', synonymList);
+            .replaceAll('{{originalWord}}', targetWord)
+            .replaceAll('{{synonyms}}', synonymList);
 
         console.log('🐰 Rabbit Response Team (Synonyms): Injecting synonyms:', synonyms);
 
@@ -1026,9 +1066,7 @@ async function fetchSynonyms(word, count) {
 
         if (Array.isArray(words)) {
             // Extract word strings and shuffle
-            const synonyms = words
-                .map(item => item.word)
-                .sort(() => Math.random() - 0.5)
+            const synonyms = fisherYatesShuffle(words.map(item => item.word))
                 .slice(0, count);
 
             return synonyms;
